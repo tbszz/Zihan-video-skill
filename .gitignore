@@ -4,3 +4,4 @@ engine/node_modules/
 engine/out/
 engine/public/
 .DS_Store
+assets/backgrounds/*.mp4

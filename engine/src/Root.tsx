@@ -13,6 +13,7 @@ const placeholder: Timeline = {
     gridSize: 40,
     gridColor: '#262626',
     dim: '#6b6b6b',
+    background: 'grid',
     font: 'NotoSansSC-VF.ttf',
     weight: 900,
     shadow: 0,

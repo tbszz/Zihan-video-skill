@@ -1,0 +1,11 @@
+{
+  "_note": "Template background videos from Pexels (free to use, no attribution required: https://www.pexels.com/license/). Fetched by scripts/get_backgrounds.py, not stored in the repo.",
+  "tree-road": {"title": "Scenic Fall Drive on Tree-Lined Road", "page": "https://www.pexels.com/video/scenic-fall-drive-on-tree-lined-road-34421697/", "file": "https://videos.pexels.com/video-files/34421697/14582005_720_1280_60fps.mp4"},
+  "tree-path": {"title": "Scenic Tree-Lined Pathway on Sunny Day", "page": "https://www.pexels.com/video/scenic-tree-lined-pathway-on-sunny-day-38686199/", "file": "https://videos.pexels.com/video-files/38686199/16432704_720_1280_60fps.mp4"},
+  "moto-rain": {"title": "A Motorcycle Ride on a Rainy Day", "page": "https://www.pexels.com/video/a-motorcycle-ride-on-a-rainy-day-12759763/", "file": "https://videos.pexels.com/video-files/12759763/12759763-hd_720_1280_50fps.mp4"},
+  "city-night": {"title": "Nighttime City Traffic on Rainy Streets", "page": "https://www.pexels.com/video/nighttime-city-traffic-on-rainy-streets-29631359/", "file": "https://videos.pexels.com/video-files/29631359/12750200_720_1280_30fps.mp4"},
+  "rain-window": {"title": "Raindrops on the Window of a Moving Car", "page": "https://www.pexels.com/video/raindrops-on-the-window-of-a-moving-car-17713400/", "file": "https://videos.pexels.com/video-files/17713400/17713400-hd_720_1280_24fps.mp4"},
+  "clouds": {"title": "Time Lapse of Clouds on Sky", "page": "https://www.pexels.com/video/time-lapse-of-clouds-on-sky-11678587/", "file": "https://videos.pexels.com/video-files/11678587/11678587-hd_720_1280_30fps.mp4"},
+  "ocean": {"title": "Dynamic Ocean Waves Captured from Above", "page": "https://www.pexels.com/video/dynamic-ocean-waves-captured-from-above-29285421/", "file": "https://videos.pexels.com/video-files/29285421/12630605_720_1280_60fps.mp4"},
+  "subway": {"title": "Urban Subway Train at Nighttime Platform", "page": "https://www.pexels.com/video/urban-subway-train-at-nighttime-platform-34661521/", "file": "https://videos.pexels.com/video-files/34661521/14692275_720_1280_30fps.mp4"}
+}

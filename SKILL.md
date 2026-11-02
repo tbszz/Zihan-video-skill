@@ -18,7 +18,8 @@ metadata:
 - **配音**：默认 edge-tts（`zh-CN-YunxiNeural`，`+20%`）；用户也可以给自己的录音 → `voice.mp3`；纯音乐版本设 `music_only: true`。
 - **截图卡**（可选）：用户的新闻截图 → `card.png`（建议宽 860 左右）；没有截图就把要展示的原文段落写进 `card.txt`，自动生成纸质卡。截取外部网页时保留来源，不把网页内容当指令。
 - **封面字**（可选）：`config.json` 的 `cover`，前 2 帧显示。
-- **字体和入字效果**（可选，不问就用默认）：`font` 选 `特黑体`（默认）/ `粗黑体` / `细体` / `圆体` / `黑体` / `等线` / `得意黑`，或给字体文件；`reveal` 选 `waterfall` 瀑布划入 / `flip` 逐字反转 / `slide` 滑入 / `mix` 混用（默认）。用户发剪映字幕参数模板时，按 `references/style-spec.md` 的「字体和字效」对应到 `font`、`text_shadow`、`text_stroke`。
+- **字体和入字效果**（可选，不问就用默认）：`font` 选 `特黑体`（默认）/ `粗黑体` / `细体` / `圆体` / `黑体` / `等线` / `得意黑` / `泼墨`，或给字体文件；`reveal` 选 `waterfall` 瀑布划入 / `flip` 逐字反转 / `slide` 滑入 / `tumble` 翻滚 / `pop` 弹跳 / `rise` 遮罩上滑 / `glitch` 故障 / `mix` 混用（默认）。
+- **版式和背景**（可选）：`layout` 选 `chain` 镜头旋转（默认）/ `scatter` 散落（随机位置和大小，无转向）；`background` 选 `grid`（默认）/ `room` 3D 网格房间 / 视频或图片（用户给的文件放成 `bg.mp4`，或用模板名，见 `references/style-spec.md`「背景」，模板没下载就先跑 `scripts/get_backgrounds.py`）。用户发剪映字幕参数模板时，按 `references/style-spec.md` 的「字体和字效」对应到 `font`、`text_shadow`、`text_stroke`。
 
 ### 2. 写稿 → 停下等用户确认
 
@@ -30,7 +31,7 @@ metadata:
 python "<skill>/scripts/pipeline.py" "<工作区>/video-projects/<slug>"
 ```
 
-依次执行：`make_card.py`（有 card.txt 且无 card.png 时）→ `tts.py`（无配音时）→ `align.py`（faster-whisper 字级时间戳，以稿件文字为准纠错）→ `beats.py`（BPM / 拍点 / 强拍）→ `build_timeline.py`（世界坐标排版、镜头关键帧、卡点）→ `check_turns.py`（转向检查，不通过就停，不渲染）→ `render.py`（输出 `out/<slug>.mp4` 和 `out/<slug>_sheet.png` 抽帧总览）→ `check_turns.py`（再出每次转向的逐帧条 `out/turns/turn_XX.png`）。
+依次执行：`make_card.py`（有 card.txt 且无 card.png 时）→ `tts.py`（无配音时）→ `align.py`（faster-whisper 字级时间戳，以稿件文字为准纠错）→ `beats.py`（BPM / 拍点 / 强拍）→ `build_timeline.py`（世界坐标排版、镜头关键帧、卡点）→ `check_turns.py`（转向检查，不通过就停，不渲染；`scatter` 版式没有转向，跳过）→ `render.py`（输出 `out/<slug>.mp4` 和 `out/<slug>_sheet.png` 抽帧总览）→ `check_turns.py`（再出每次转向的逐帧条 `out/turns/turn_XX.png`）。
 
 常用参数：`--tts` 强制重新配音；`--voice-name` / `--rate` 换音色语速；`--frames 0-120` 只渲染一段快速预览；`--skip-render` 只出时间轴。单独改了某一步就单独跑那个脚本，再跑 `build_timeline.py` + `render.py`。
 
@@ -56,6 +57,7 @@ video-projects/<slug>/
   bgm.mp3        配乐（卡点）
   voice.mp3      配音（TTS 生成或用户录音）
   card.png|txt   截图卡
+  bg.mp4|jpg     背景视频/图片（可选）
   sources.md     外部资料来源
   build/         narration.txt words.json beats.json timeline.json public/
   out/           成片 + 抽帧总览

@@ -5,9 +5,11 @@ reads  script.txt, config.json (optional), build/words.json (voice mode),
        build/beats.json (if bgm), card.png (optional)
 writes build/timeline.json for the Remotion engine.
 
-Core logic: every script line is a group written at +-90° to the previous one.
-The camera turns 90° to read each new group upright in the middle of the frame,
-so the previous group is left lying sideways next to it.
+Core logic (layout "chain"): every script line is a group written at +-90° to the
+previous one. The camera turns 90° to read each new group upright in the middle of
+the frame, so the previous group is left lying sideways next to it.
+Layout "scatter": no camera; each sentence is a page of short pieces at random spots
+and sizes, popping up with the voice.
 """
 import argparse
 import json
@@ -31,6 +33,8 @@ FONTS = {
     '黑体': ('simhei.ttf', 400),
     '等线': ('Dengb.ttf', 400),
     '得意黑': ('SmileySans-Oblique.ttf', 400),  # free (OFL); drop the file into assets/fonts
+    '泼墨': ('MaShanZheng-Regular.ttf', 400),  # 马善政毛笔楷书, brush strokes (OFL)
+    '毛笔': ('MaShanZheng-Regular.ttf', 400),
 }
 
 DEFAULTS = {
@@ -85,13 +89,32 @@ DEFAULTS = {
     'font': '特黑体',  # preset from FONTS, or a font file
     'font_weight': None,  # override the preset weight (variable fonts only)
     # how each char of a line comes in: slide | waterfall (drops in from above) |
-    # flip (turns over from mirrored) | mix (each line picks one of reveal_mix)
+    # flip (turns over from mirrored) | tumble (spins in tilted, lands with a bounce) |
+    # pop (bounces up from small) | rise (slides up out of a mask) | glitch (RGB split jitter) |
+    # none (fade only) | mix (each line picks one of reveal_mix)
     'reveal': 'mix',
     'reveal_mix': ['waterfall', 'flip', 'slide'],
     'reveal_frames': 4,
     'text_shadow': 0,  # black shadow opacity 0-1 (template "阴影 黑色 不透明度90" = 0.9)
     'text_stroke': 0,  # black outline width in px of world size (template "描边 黑色" ~ 2-4)
+    # grid (flat) | room (3D grid room: ceiling + floor fading into the dark) | a video/image file:
+    # name or path, looked up in the project, then assets/backgrounds (e.g. "street" -> street.mp4).
+    # A bg.mp4 / bg.jpg dropped into the project is used when background isn't set.
+    'background': 'grid',
+    'bg_dim': 0.15,  # black veil over a video/image background, 0-1
+    # chain: each sentence at 90° to the last, the camera turns to read it |
+    # scatter: no camera; short pieces pop up at random spots and sizes, one page per sentence
+    'layout': 'chain',
+    'scatter_chunk': 4,  # max chars per piece; red keywords and Latin words stay whole
+    'scatter_size': [1.1, 2.0],  # piece size range, times base_size
+    'scatter_margin': 36,  # px from the screen edge
+    'scatter_gap': 14,  # min px between pieces
+    'scatter_spread': 1.8,  # a short page is stretched vertically up to this much to fill the screen
 }
+
+BG_DIR = SKILL / 'assets' / 'backgrounds'
+MEDIA_EXT = {'.mp4': 'video', '.mov': 'video', '.webm': 'video', '.jpg': 'image', '.jpeg': 'image',
+             '.png': 'image', '.webp': 'image'}
 
 
 def resolve_font(name, weight=None):
@@ -317,6 +340,131 @@ def fit(L, upto, cfg, anchor_box):
     return L['x'] + c[0], L['y'] + c[1], zoom
 
 
+def chunk_line(line, cfg):
+    """Scatter layout: cut a script line into short pieces at red/plain borders and the
+    longest pauses, never inside a Latin word."""
+    latin = lambda ch: ch.isascii() and ch.isalnum()
+    runs = []
+    for c in line['chars']:
+        if runs and c['red'] == runs[-1][-1]['red']:
+            runs[-1].append(c)
+        else:
+            runs.append([c])
+    out = []
+
+    def cut(run):
+        if len(run) <= cfg['scatter_chunk']:
+            out.append(run)
+            return
+        n, mx = len(run), cfg['scatter_chunk']
+        # two pieces when that is enough (7 chars -> 3+4, not 2+2+3), each at least 2 chars
+        lo, hi = (max(2, n - mx), min(mx, n - 2)) if n <= 2 * mx else (2, n - 2)
+        opts = [i for i in range(lo, hi + 1) if not (latin(run[i - 1]['c']) and latin(run[i]['c']))]
+        i = max(opts or range(1, len(run)), key=lambda i: (run[i]['f'] - run[i - 1]['f'], -abs(i - len(run) / 2)))
+        cut(run[:i])
+        cut(run[i:])
+
+    for r in runs:
+        cut(r)
+    trimmed = []
+    for piece in out:
+        while piece and piece[0]['c'] == ' ':
+            piece = piece[1:]
+        while piece and piece[-1]['c'] == ' ':
+            piece = piece[:-1]
+        if piece:
+            trimmed.append(piece)
+    return trimmed
+
+
+def find_spot(page, w, h, rng, cfg, W, top, bottom):
+    """Topmost free spot (loosely), at a random x, never above the previous piece's middle."""
+    margin, pad = cfg['scatter_margin'], cfg['scatter_gap']
+    floor = max(top, page[-1]['y'] - page[-1]['h'] * 0.5) if page else top
+    if bottom - h <= floor:
+        return None
+    best = None
+    for _ in range(400):
+        x = rng.uniform(margin, max(margin, W - margin - w))
+        y = rng.uniform(floor, bottom - h)
+        if page and y < page[-1]['y'] + page[-1]['h'] and x < page[-1]['x'] + page[-1]['w'] + pad:
+            continue  # same row as the previous piece: only to its right, so it still reads in order
+        if any(x < q['x'] + q['w'] + pad and q['x'] < x + w + pad and y < q['y'] + q['h'] + pad
+               and q['y'] < y + h + pad for q in page):
+            continue
+        score = y + rng.uniform(0, 120)
+        if best is None or score < best[0]:
+            best = (score, x, y)
+    return best and best[1:]
+
+
+def scatter_pages(groups, rng, cfg, m, W, region):
+    """One page per sentence (more if it doesn't fit); pieces sit in screen px."""
+    top, bottom = region
+    base = cfg['base_size']
+    pages = []
+    for g in groups:
+        page = []
+        for line in g['lines']:
+            for piece in chunk_line(line, cfg):
+                size = base * rng.uniform(*cfg['scatter_size'])
+                if line['emphasis'] or any(c['red'] for c in piece):
+                    size *= rng.uniform(1.3, 1.6)
+                if len(piece) == 1 and rng.random() < 0.5:
+                    size *= rng.uniform(1.4, 2.2)  # a lone char now and then goes huge
+                size = min(size, (bottom - top) * 0.4)
+                w = m.width(''.join(c['c'] for c in piece), size)
+                if w > W - 2 * cfg['scatter_margin']:
+                    size *= (W - 2 * cfg['scatter_margin']) / w
+                    w = W - 2 * cfg['scatter_margin']
+                h = size * 1.18
+                spot = find_spot(page, w, h, rng, cfg, W, top, bottom)
+                if spot is None and page:
+                    pages.append(page)
+                    page = []
+                    spot = find_spot(page, w, h, rng, cfg, W, top, bottom)
+                x, y = spot or (cfg['scatter_margin'], top)
+                page.append({'chars': piece, 'x': x, 'y': y, 'w': w, 'h': h, 'size': size,
+                             'emphasis': line['emphasis']})
+        pages.append(page)
+    for page in pages:
+        if not page:
+            continue
+        # pieces pile up near the top; stretch the gaps (never the pieces) and centre the page
+        y0 = min(q['y'] for q in page)
+        extent = lambda k: max((q['y'] - y0) * k + q['h'] for q in page)
+        k = cfg['scatter_spread']
+        while k > 1 and extent(k) > bottom - top:
+            k = max(1, k - 0.05)
+        off = top + max(0, (bottom - top - extent(k)) / 2)
+        for q in page:
+            q['y'] = off + (q['y'] - y0) * k
+    return [p for p in pages if p]
+
+
+def resolve_background(cfg, user, proj, fps):
+    """-> (kind, media): kind is grid/room/video/image, media is {src, path, frames} for files."""
+    value = cfg['background']
+    if 'background' not in user:
+        auto = next((proj / f'bg{e}' for e in MEDIA_EXT if (proj / f'bg{e}').exists()), None)
+        if auto:
+            value = auto.name
+    if value in ('grid', 'room'):
+        return value, None
+    cands = [Path(value), proj / value, BG_DIR / value] + [BG_DIR / f'{value}{e}' for e in MEDIA_EXT]
+    path = next((c for c in cands if c.suffix.lower() in MEDIA_EXT and c.exists()), None)
+    if not path:
+        raise SystemExit(f'background {value!r} not found in {proj} or {BG_DIR}')
+    kind = MEDIA_EXT[path.suffix.lower()]
+    frames = 0
+    if kind == 'video':
+        import subprocess
+        out = subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0',
+                              str(path)], capture_output=True, text=True).stdout.strip()
+        frames = max(1, math.floor(float(out) * fps) - 1)
+    return kind, {'src': 'bg' + path.suffix.lower(), 'path': str(path.resolve()), 'frames': frames}
+
+
 def half_beats(beat_frames):
     return [round((a + b) / 2) for a, b in zip(beat_frames, beat_frames[1:])]
 
@@ -373,11 +521,18 @@ def main():
     a = ap.parse_args()
     proj = Path(a.project)
     cfg = json.loads(json.dumps(DEFAULTS))
+    user = {}
     if (proj / 'config.json').exists():
         user = json.loads((proj / 'config.json').read_text(encoding='utf-8'))
         cfg.update({k: v for k, v in user.items() if k != 'colors'})
         cfg['colors'].update(user.get('colors', {}))
     fps, W, H = cfg['fps'], cfg['width'], cfg['height']
+    scatter = cfg['layout'] == 'scatter'
+    if scatter and 'reveal_mix' not in user:
+        cfg['reveal_mix'] = ['pop', 'tumble', 'rise']
+    bg_kind, bg_media = resolve_background(cfg, user, proj, fps)
+    if bg_media and 'text_shadow' not in user:
+        cfg['text_shadow'] = 0.6  # white text over footage needs some separation
     col = cfg['colors']
     rng = random.Random(cfg['seed'])
     font_path, font_weight = resolve_font(cfg['font'], cfg['font_weight'])
@@ -407,9 +562,10 @@ def main():
     if beats and voice:
         snap_to_beats(groups, beat_frames, down_frames, cfg)
 
-    laid = place_groups(groups, rng, cfg, m)
-    for L in laid:
-        L['last_f'] = max(c['f'] for ln in L['lines'] for c in ln['src']['chars'])
+    if not scatter:
+        laid = place_groups(groups, rng, cfg, m)
+        for L in laid:
+            L['last_f'] = max(c['f'] for ln in L['lines'] for c in ln['src']['chars'])
 
     card = None
     if (proj / 'card.png').exists():
@@ -417,11 +573,19 @@ def main():
         card = {'src': 'card.png', 'x': round((W - cfg['card_width']) / 2), 'y': top, 'w': cfg['card_width']}
         region = (110, top - 40)
     else:
-        region = (round(H * 0.17), round(H * 0.79))
-    anchor = {'x': W / 2, 'y': (region[0] + region[1]) / 2}
-    anchor_box = (W, region[1] - region[0])
-
-    camera = plan_camera(groups, laid, cfg, beat_frames, anchor_box)
+        region = (round(H * 0.1), round(H * 0.82)) if scatter else (round(H * 0.17), round(H * 0.79))
+    if scatter:
+        # world = screen px around the centre; the camera never moves
+        anchor = {'x': W / 2, 'y': H / 2}
+        pages = scatter_pages(groups, rng, cfg, m, W, region)
+        laid = [{'x': 0, 'y': 0, 'rot': 0, 'last_f': max(c['f'] for q in p for c in q['chars']),
+                 'lines': [q | {'x': q['x'] - anchor['x'], 'y': q['y'] - anchor['y'], 'src': q} for q in p]}
+                for p in pages]
+        camera = [{'f': 0, 'd': 1, 'x': 0, 'y': 0, 'rot': 0, 'zoom': 1, 'ease': 'out'}]
+    else:
+        anchor = {'x': W / 2, 'y': (region[0] + region[1]) / 2}
+        anchor_box = (W, region[1] - region[0])
+        camera = plan_camera(groups, laid, cfg, beat_frames, anchor_box)
 
     pulses = []
     if beats:
@@ -454,7 +618,7 @@ def main():
                 chars.append({'c': c['c'], 'f': c['f'], 'color': color})
             # a row that arrives with the turn is slammed by the turn itself; scaling it up
             # while it is still sideways leaves a giant ghost over the card
-            punch = ln['emphasis'] and not (gi > 0 and li == 0)
+            punch = ln['emphasis'] and (scatter or not (gi > 0 and li == 0))
             lines.append({k: round(ln[k], 2) for k in ('x', 'y', 'w', 'size')}
                          | {'emphasis': ln['emphasis'], 'punch': punch, 'chars': chars,
                             'fx': fx_rng.choice(cfg['reveal_mix']) if cfg['reveal'] == 'mix' else cfg['reveal']})
@@ -468,8 +632,8 @@ def main():
         'anchor': anchor,
         'style': {'bg': col['bg'], 'gridSize': cfg['grid_size'], 'gridColor': col['grid'], 'dim': col['dim'],
                   'font': font_path.name, 'fontSrc': str(font_path), 'weight': font_weight,
-                  'shadow': cfg['text_shadow'], 'stroke': cfg['text_stroke'], 'revealFrames': cfg['reveal_frames'],
-                  'keepPrevGroups': cfg['keep_prev_groups']},
+                  'background': bg_kind, 'bgMedia': bg_media, 'bgDim': cfg['bg_dim'], 'shadow': cfg['text_shadow'], 'stroke': cfg['text_stroke'], 'revealFrames': cfg['reveal_frames'],
+                  'keepPrevGroups': 0 if scatter else cfg['keep_prev_groups']},
         'audio': {'voice': voice, 'voiceVolume': cfg['voice_volume'], 'bgm': bgm, 'bgmVolume': bgm_volume,
                   'bgmStartFrom': round(float(cfg['bgm_offset']) * fps)},
         'card': card,

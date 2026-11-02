@@ -10,7 +10,8 @@ export type Line = {
   size: number;
   emphasis: boolean;
   punch: boolean; // slam in from a bigger scale (emphasis rows that don't arrive with a turn)
-  fx: 'slide' | 'waterfall' | 'flip' | 'none'; // how each char comes in ('none' = fade only)
+  // how each char comes in ('none' = fade only)
+  fx: 'slide' | 'waterfall' | 'flip' | 'tumble' | 'pop' | 'rise' | 'glitch' | 'none';
   chars: Char[];
 };
 
@@ -46,6 +47,9 @@ export type Timeline = {
     gridSize: number;
     gridColor: string;
     dim: string;
+    background?: 'grid' | 'room' | 'video' | 'image'; // flat grid, 3D grid room, or a file
+    bgMedia?: { src: string; frames: number } | null; // video/image file in public/, video length
+    bgDim?: number; // black veil over the file
     font: string;
     weight: number;
     shadow: number; // black text-shadow opacity, 0 = none

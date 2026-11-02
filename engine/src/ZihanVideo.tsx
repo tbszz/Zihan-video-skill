@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   AbsoluteFill,
   Audio,
   Img,
+  Loop,
+  OffthreadVideo,
   Sequence,
   cancelRender,
   continueRender,
@@ -85,38 +87,121 @@ const mix = (a: string, b: string, t: number) => {
   return `rgb(${c[0]},${c[1]},${c[2]})`;
 };
 
-// Per-char entrances, all a few frames long so they never hold up the page turns:
-// slide = in from the left, waterfall = drops in from above, flip = turns over from mirrored.
-const charMotion = (fx: Line['fx'], e: number, size: number) => {
-  const r = 1 - e;
-  if (fx === 'waterfall') return `translateY(${(-0.7 * size * r).toFixed(2)}px)`;
-  if (fx === 'flip') return `perspective(${(size * 6).toFixed(0)}px) rotateY(${(180 * r).toFixed(1)}deg)`;
-  if (fx === 'slide') return `translateX(${(-0.45 * size * r).toFixed(2)}px)`;
-  return undefined;
+const easeOutBack = (t: number) => 1 + 2.70158 * Math.pow(t - 1, 3) + 1.70158 * Math.pow(t - 1, 2);
+const rnd = (n: number) => {
+  const x = Math.sin(n * 12.9898 + 78.233) * 43758.5453;
+  return x - Math.floor(x);
 };
 
-const CharSpan: React.FC<{ ch: Char; frame: number; size: number; dim: string; fx: Line['fx'] | null; dur: number }> = ({
-  ch,
-  frame,
-  size,
-  dim,
-  fx,
-  dur,
-}) => {
+// the bouncy / noisy entrances need a couple of frames more than the plain ones to read
+const FX_LEN: Partial<Record<Line['fx'], number>> = { tumble: 1.5, pop: 1.25, glitch: 1.5 };
+
+// Per-char entrances, all a few frames long so they never hold up the page turns.
+// t = 0..1 progress of this char, seed = stable per char.
+const charMotion = (fx: Line['fx'], t: number, size: number, seed: number): React.CSSProperties => {
+  const r = 1 - easeOut(t);
+  if (fx === 'waterfall') return { transform: `translateY(${(-0.7 * size * r).toFixed(2)}px)` };
+  if (fx === 'flip') return { transform: `perspective(${(size * 6).toFixed(0)}px) rotateY(${(180 * r).toFixed(1)}deg)` };
+  if (fx === 'slide') return { transform: `translateX(${(-0.45 * size * r).toFixed(2)}px)` };
+  if (fx === 'tumble') {
+    // tipped over at a random angle, falls into place and settles with a small bounce
+    const b = 1 - easeOutBack(t);
+    const dir = rnd(seed) < 0.5 ? -1 : 1;
+    const ang = dir * (30 + 40 * rnd(seed + 1));
+    return {
+      transform: `translate(${(0.25 * dir * size * b).toFixed(2)}px, ${(0.45 * size * b).toFixed(2)}px) rotate(${(ang * b).toFixed(1)}deg) scale(${(1 + 0.3 * b).toFixed(3)})`,
+    };
+  }
+  if (fx === 'pop') return { transform: `scale(${(0.2 + 0.8 * easeOutBack(t)).toFixed(3)})` };
+  if (fx === 'rise') return { transform: `translateY(${(100 * r).toFixed(1)}%)` };
+  if (fx === 'glitch') {
+    const k = 1 - t;
+    const dx = (0.08 * size * k).toFixed(1);
+    return {
+      transform: `translateX(${((rnd(seed * 7 + Math.floor(t * 8)) - 0.5) * 0.14 * size * k).toFixed(2)}px)`,
+      textShadow: `${dx}px 0 rgba(255,0,64,0.85), -${dx}px 0 rgba(0,229,255,0.85)`,
+    };
+  }
+  return {};
+};
+
+const CharSpan: React.FC<{
+  ch: Char;
+  idx: number;
+  frame: number;
+  size: number;
+  dim: string;
+  fx: Line['fx'] | null;
+  dur: number;
+}> = ({ ch, idx, frame, size, dim, fx, dur }) => {
   if (frame < ch.f) return <span style={{ opacity: 0 }}>{ch.c}</span>;
-  const e = easeOut(clamp01((frame - ch.f) / dur));
-  return (
+  const t = clamp01((frame - ch.f) / (dur * ((fx && FX_LEN[fx]) || 1)));
+  const e = easeOut(t);
+  const glyph = (
     <span
       style={{
         display: 'inline-block',
         opacity: (fx === 'waterfall' ? 0.15 : 0.35) + (fx === 'waterfall' ? 0.85 : 0.65) * e,
         color: mix(dim, ch.color, e),
-        transform: e < 1 && fx ? charMotion(fx, e, size) : undefined,
+        ...(t < 1 && fx ? charMotion(fx, t, size, ch.f * 31 + idx * 17) : {}),
         whiteSpace: 'pre',
       }}
     >
       {ch.c}
     </span>
+  );
+  // rise slides up out of a mask the size of the char
+  if (fx === 'rise' && t < 1) {
+    return <span style={{ display: 'inline-block', overflow: 'hidden', verticalAlign: 'top' }}>{glyph}</span>;
+  }
+  return glyph;
+};
+
+// A 3D grid room: ceiling and floor in perspective, fading into the dark at eye level.
+// Each line has its own faint tint, like the coloured fringes of a filmed grid.
+type Seg = { x1: number; y1: number; x2: number; y2: number; w: number; c: string };
+const roomLines = (W: number, H: number): Seg[] => {
+  const cx = W / 2;
+  const cy = H / 2;
+  const f = H * 0.55; // focal length
+  const eye = 5; // eye height above the floor / below the ceiling, in grid cells (fewer = bigger cells)
+  const zNear = ((f * eye) / (H / 2)) * 0.8; // a little in front of the screen edge
+  const zFar = 32; // stop before the dark band, converging lines there only make moire
+  const segs: Seg[] = [];
+  for (const side of [-1, 1]) {
+    const y = (z: number) => cy + (side * f * eye) / z;
+    for (let x = -22; x <= 22; x++) {
+      segs.push({
+        x1: cx + (f * x) / zNear, y1: y(zNear), x2: cx + (f * x) / zFar, y2: y(zFar), w: 3.2,
+        c: `hsl(${(x * 47 + side * 70 + 720) % 360} 45% 72%)`,
+      });
+    }
+    for (let z = Math.ceil(zNear); z <= zFar; z++) {
+      segs.push({
+        x1: 0, y1: y(z), x2: W, y2: y(z), w: Math.max(0.8, (3.4 * zNear) / z),
+        c: `hsl(${(z * 61 + side * 40 + 720) % 360} 35% 74%)`,
+      });
+    }
+  }
+  return segs;
+};
+
+const Room: React.FC<{ w: number; h: number; glow: number }> = ({ w, h, glow }) => {
+  const segs = useMemo(() => roomLines(w, h), [w, h]);
+  return (
+    <AbsoluteFill>
+      <svg width={w} height={h} style={{ position: 'absolute', opacity: glow }}>
+        {segs.map((s, i) => (
+          <line key={i} x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} stroke={s.c} strokeWidth={s.w} strokeOpacity={0.7} />
+        ))}
+      </svg>
+      <AbsoluteFill
+        style={{
+          background:
+            'linear-gradient(rgba(0,0,0,0) 12%, rgba(0,0,0,0.92) 39%, #000 50%, rgba(0,0,0,0.92) 61%, rgba(0,0,0,0) 88%)',
+        }}
+      />
+    </AbsoluteFill>
   );
 };
 
@@ -143,6 +228,7 @@ const LineView: React.FC<{ line: Line; frame: number; dim: string; dur: number }
       {line.chars.map((ch, i) => (
         <CharSpan
           key={i}
+          idx={i}
           ch={ch}
           frame={frame}
           size={line.size}
@@ -250,13 +336,34 @@ export const ZihanVideo: React.FC<Timeline> = (tl) => {
 
   return (
     <AbsoluteFill style={{ backgroundColor: s.bg, overflow: 'hidden' }}>
-      <AbsoluteFill
-        style={{
-          backgroundImage: `linear-gradient(${s.gridColor} 1px, transparent 1px), linear-gradient(90deg, ${s.gridColor} 1px, transparent 1px)`,
-          backgroundSize: `${s.gridSize}px ${s.gridSize}px`,
-          backgroundPosition: `${(tl.width / 2) % s.gridSize}px ${(tl.height / 2) % s.gridSize}px`,
-        }}
-      />
+      {(s.background === 'video' || s.background === 'image') && s.bgMedia ? (
+        // footage fills the frame and bumps a little on every beat
+        <AbsoluteFill style={{ transform: `scale(${1 + (pulse - 1) * 0.6})` }}>
+          {s.background === 'video' ? (
+            <Loop durationInFrames={s.bgMedia.frames}>
+              <OffthreadVideo
+                src={staticFile(s.bgMedia.src)}
+                muted
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            </Loop>
+          ) : (
+            <Img src={staticFile(s.bgMedia.src)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          )}
+          <AbsoluteFill style={{ backgroundColor: `rgba(0,0,0,${s.bgDim ?? 0})` }} />
+        </AbsoluteFill>
+      ) : s.background === 'room' ? (
+        // the room brightens a touch on every beat
+        <Room w={tl.width} h={tl.height} glow={Math.min(1, 0.8 + (pulse - 1) * 4)} />
+      ) : (
+        <AbsoluteFill
+          style={{
+            backgroundImage: `linear-gradient(${s.gridColor} 1px, transparent 1px), linear-gradient(90deg, ${s.gridColor} 1px, transparent 1px)`,
+            backgroundSize: `${s.gridSize}px ${s.gridSize}px`,
+            backgroundPosition: `${(tl.width / 2) % s.gridSize}px ${(tl.height / 2) % s.gridSize}px`,
+          }}
+        />
+      )}
 
       {world(false)}
 

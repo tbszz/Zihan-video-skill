@@ -54,10 +54,12 @@ def main():
     elif music_only:
         raise SystemExit('music_only needs bgm.mp3 in the project')
     run('build_timeline.py', str(proj))
-    run('check_turns.py', str(proj), '--no-strips')  # stop here rather than render a bad camera
+    chain = cfg.get('layout', 'chain') == 'chain'  # scatter has no camera turns to check
+    if chain:
+        run('check_turns.py', str(proj), '--no-strips')  # stop here rather than render a bad camera
     if not a.skip_render:
         run('render.py', str(proj), *(['--frames', a.frames] if a.frames else []))
-        if not a.frames:
+        if chain and not a.frames:
             run('check_turns.py', str(proj))  # per-turn frame strips for the visual check
 
 

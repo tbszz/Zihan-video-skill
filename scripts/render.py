@@ -34,6 +34,9 @@ def main():
     for name in [tl['audio']['voice'], tl['audio']['bgm'], tl['card'] and tl['card']['src']]:
         if name:
             shutil.copy(proj / name, public / name)
+    media = tl['style'].get('bgMedia')
+    if media:
+        shutil.copy(media['path'], public / media['src'])
 
     out = Path(a.out) if a.out else proj / 'out' / f'{proj.name}.mp4'
     out = out if out.is_absolute() else proj / out

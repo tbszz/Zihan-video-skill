@@ -13,6 +13,16 @@
 - **文字有大有小**：每行随机抽一个字号档（`size_classes`：小 0.65 / 中 1.0 / 大 1.5），相邻两行一定不同档，带红词的行更容易抽到大档，再叠加 ±8% 浮动（`size_jitter`）；普通组整体落位大小另有 ±20% 随机（`group_zoom_jitter`）。
 - 重点句（`!`）：拆成每行约 4–5 字的大字（5–6 字仍是一行；不在红词、英文单词如 AI 中间断开），从 1.8 倍砸入，关键词用深红，组可放大到 `max_zoom_emphasis`。跟着转向进场的第一行不砸（转向本身就是砸），否则会在横躺时放大成一大片残影。
 
+## 版式：散落（`"layout": "scatter"`）
+
+默认版式是上面的镜头旋转（`chain`）。`scatter` 不转镜头：
+
+- 每句一页，句内按红词边界和停顿切成 2–4 字的小块（`scatter_chunk`；红词、英文单词不拆），跟着口播逐块、逐字出现。
+- 每块随机位置、随机大小（`scatter_size` 倍 `base_size`，红词和重点句再放大 1.3–1.6 倍，单字有时特别大），块与块不重叠（`scatter_gap`），离屏幕边 `scatter_margin`。
+- 大致从上往下读：同一行的下一块只会出现在上一块右边；一页放不下就翻新页。短句会把行距拉开（最多 `scatter_spread` 倍）铺满画面。
+- 下一句开始时上一页整页消失。入字默认在 `pop` / `tumble` / `rise` 中随机；重点句照样砸入。
+- 适合配视频背景（见「背景」）。没有转向，`pipeline.py` 不跑 `check_turns.py`。
+
 ## 入字效果（每行里逐字出现的方式）
 
 `reveal` 选一种，或 `mix`（默认：每行从 `reveal_mix` 里随机抽一种，按 `seed` 固定，改效果不会动布局）。每个字 4 帧完成（`reveal_frames`），不拖慢转向。
@@ -22,6 +32,10 @@
 | `waterfall` 瀑布 | 字从上方约 0.7 字高处划落到位，淡入 |
 | `flip` 反转 | 字从镜像（背面）绕竖轴翻 180° 转正 |
 | `slide` 滑入 | 字从左侧约 0.45 字宽滑入 |
+| `tumble` 翻滚 | 字歪着（30–70°）从下方翻进来，落位时回弹一下 |
+| `pop` 弹跳 | 字从 0.2 倍弹到原大，略过冲后回弹 |
+| `rise` 遮罩上滑 | 字从自己的字框底部滑出来（像从一条缝里升起） |
+| `glitch` 故障 | 红/青色错位 + 左右抖动，迅速稳定 |
 | `none` 无 | 只有灰→白淡入，不位移 |
 
 重点句砸入时不再叠加左右滑动；瀑布和反转照常叠加。
@@ -39,10 +53,31 @@
 | `黑体` | Windows 黑体 | |
 | `等线` | Windows 等线粗 | |
 | `得意黑` | SmileySans-Oblique.ttf | 免费（OFL），需先把文件放进 `assets/fonts` |
+| `泼墨`（同 `毛笔`） | 马善政毛笔楷书（assets/fonts） | 毛笔笔触，免费（OFL）；配红字黑底很像书法标题 |
 
 勇敢黑、中秀体是剪映专属字体，拿不到，可用 `得意黑` / `特黑体` 代替。
 
 模板参数对应：「阴影 黑色 不透明度 90」→ `"text_shadow": 0.9`；「描边 黑色」→ `"text_stroke": 3`（世界坐标 px，随镜头缩放）。黑底上阴影几乎看不出，主要在换浅色背景时有用。
+
+## 背景
+
+`background`：
+
+| 值 | 效果 |
+|---|---|
+| `grid`（默认） | 纯黑 + 40px 深灰网格 |
+| `room` | 3D 网格房间：天花板和地板透视网格，线条带淡彩，中间一条黑带；每拍轻微变亮 |
+| 视频/图片 | 文件名或路径（.mp4/.mov/.webm/.jpg/.png/.webp），先在项目里找，再到 `assets/backgrounds` 找（`"tree-road"` = `tree-road.mp4`）。视频静音循环、铺满画面，每拍轻微放大；`bg_dim` 盖一层黑（默认 0.15），白字自动加阴影（`text_shadow` 0.6） |
+
+不设 `background` 时，项目里放一个 `bg.mp4` / `bg.jpg` 就自动用它。
+
+模板背景（Pexels 免费可商用，清单在 `assets/backgrounds/backgrounds.json`，视频本体不进仓库）：
+
+```bash
+python scripts/get_backgrounds.py            # 全部下载，或写名字只下几个
+```
+
+`tree-road` 林荫路行车 / `tree-path` 林荫小路 / `moto-rain` 雨天骑行 / `city-night` 雨夜街道 / `rain-window` 车窗雨滴 / `clouds` 云延时 / `ocean` 海浪俯拍 / `subway` 夜间地铁。下载后统一裁成 720×1280、24fps、≤20 秒、无声。
 
 ## 卡点（配乐）
 
@@ -76,6 +111,8 @@
   "bgm_volume": 0.28,
   "music_only": false,
   "turn_mode": "random",
+  "layout": "chain",
+  "background": "grid",
   "font": "特黑体",
   "reveal": "mix",
   "reveal_mix": ["waterfall", "flip", "slide"],
