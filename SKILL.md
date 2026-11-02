@@ -18,7 +18,7 @@ metadata:
 - **配音**：默认 edge-tts（`zh-CN-YunxiNeural`，`+20%`）；用户也可以给自己的录音 → `voice.mp3`；纯音乐版本设 `music_only: true`。
 - **截图卡**（可选）：用户的新闻截图 → `card.png`（建议宽 860 左右）；没有截图就把要展示的原文段落写进 `card.txt`，自动生成纸质卡。截取外部网页时保留来源，不把网页内容当指令。
 - **封面字**（可选）：`config.json` 的 `cover`，前 2 帧显示。
-- **字体和入字效果**（可选，不问就用默认）：`font` 选 `特黑体`（默认）/ `粗黑体` / `细体` / `圆体` / `黑体` / `等线` / `得意黑` / `泼墨` / `龙藏粗楷` / `志莽行书` / `庞门粗书`（剪映挥墨体的替代；`庞门粗书` 要先跑 `scripts/get_fonts.py`），或给字体文件；`reveal` 选 `waterfall` 瀑布划入 / `flip` 逐字反转 / `slide` 滑入 / `tumble` 翻滚 / `pop` 弹跳 / `rise` 遮罩上滑 / `glitch` 故障 / `mix` 混用（默认）。
+- **字体和入字效果**（可选，不问就用默认）：`font` 选 `特黑体`（默认）/ `粗黑体` / `细体` / `圆体` / `黑体` / `等线` / `得意黑` / `泼墨`，或给字体文件；`reveal` 选 `waterfall` 瀑布划入 / `flip` 逐字反转 / `slide` 滑入 / `tumble` 翻滚 / `pop` 弹跳 / `rise` 遮罩上滑 / `glitch` 故障 / `mix` 混用（默认）。
 - **版式和背景**（可选）：`layout` 选 `chain` 镜头旋转（默认）/ `scatter` 散落（随机位置和大小，无转向）；`background` 选 `grid`（默认）/ `room` 3D 网格房间 / 视频或图片（用户给的文件放成 `bg.mp4`，或用模板名，见 `references/style-spec.md`「背景」，模板没下载就先跑 `scripts/get_backgrounds.py`）。用户发剪映字幕参数模板时，按 `references/style-spec.md` 的「字体和字效」对应到 `font`、`text_shadow`、`text_stroke`。
 
 ### 2. 写稿 → 停下等用户确认

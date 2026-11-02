@@ -1,8 +1,5 @@
 NotoSansSC-VF.ttf: Copyright 2014-2021 Adobe (http://www.adobe.com/), with Reserved Font Name 'Source'.
 NotoSerifSC-VF.ttf: Copyright 2017-2023 Adobe (http://www.adobe.com/).
-MaShanZheng-Regular.ttf: Copyright 2018 The MaShanZheng Project Authors (https://github.com/googlefonts/mashanzheng)
-ZhiMangXing-Regular.ttf: Copyright 2018 The ZhiMangXing Project Authors (https://github.com/googlefonts/zhimangxing)
-HanChanLongCangKai-ExtraBold.otf (寒蝉书体·龙藏楷书, a derivative of Long Cang by 寒蝉字型): Copyright 2018 The LongCang Project Authors (https://github.com/googlefonts/longcang)
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:

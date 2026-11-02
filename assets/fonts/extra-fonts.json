@@ -1,9 +1,0 @@
-{
-  "_note": "Free-for-commercial-use fonts whose licence doesn't clearly allow redistribution, so they are not in the repo. Fetched by scripts/get_fonts.py into assets/fonts.",
-  "PangMenZhengDaoCuShuTi.ttf": {
-    "title": "庞门正道粗书体",
-    "license": "免费商用（庞门正道 2018 年发布公告）",
-    "page": "https://mp.weixin.qq.com/s/LZ_PMNc-3uX-Atmri4OLGQ",
-    "file": "https://github.com/jaywcjlove/free-font/raw/main/docs/fonts/%E5%BA%9E%E9%97%A8%E6%AD%A3%E9%81%93%E5%AD%97%E4%BD%93%E7%B3%BB%E5%88%97/%E5%BA%9E%E9%97%A8%E6%AD%A3%E9%81%93%E7%B2%97%E4%B9%A6%E4%BD%93.ttf"
-  }
-}

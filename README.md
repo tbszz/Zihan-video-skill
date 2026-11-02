@@ -37,7 +37,7 @@ Claude Code / Codex Agent Skill：把口播稿做成 9:16 竖屏「字幕翻转�
 
 ## 字体
 
-`"font"`：下面这些预设，或任意字体文件（`庞门粗书` 先跑 `python scripts/get_fonts.py`，`得意黑` 需自备文件）。
+`"font"`：下面这些预设，或任意字体文件（`得意黑` 需自备文件）。
 
 <p align="center"><img src="docs/fonts.png" width="480" alt="fonts"></p>
 
@@ -60,4 +60,4 @@ python scripts/pipeline.py video-projects/my-video
 
 ## 许可
 
-代码 MIT；字体 Noto Sans SC / Noto Serif SC / 马善政毛笔楷书 / 钟齐志莽行书 / 寒蝉龙藏楷书，SIL OFL 1.1；庞门正道粗书体免费商用，不随仓库分发；模板背景来自 [Pexels](https://www.pexels.com/license/)，不随仓库分发。
+代码 MIT；字体 Noto Sans SC / Noto Serif SC / 马善政毛笔楷书，SIL OFL 1.1；模板背景来自 [Pexels](https://www.pexels.com/license/)，不随仓库分发。
