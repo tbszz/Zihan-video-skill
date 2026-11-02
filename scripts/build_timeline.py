@@ -35,6 +35,9 @@ FONTS = {
     '得意黑': ('SmileySans-Oblique.ttf', 400),  # free (OFL); drop the file into assets/fonts
     '泼墨': ('MaShanZheng-Regular.ttf', 400),  # 马善政毛笔楷书, brush strokes (OFL)
     '毛笔': ('MaShanZheng-Regular.ttf', 400),
+    '龙藏粗楷': ('HanChanLongCangKai-ExtraBold.otf', 400),  # 寒蝉书体·龙藏楷书 特粗, heavy brush (OFL)
+    '志莽行书': ('ZhiMangXing-Regular.ttf', 400),  # 钟齐志莽行书, flying running script (OFL)
+    '庞门粗书': ('PangMenZhengDaoCuShuTi.ttf', 400),  # 庞门正道粗书体, free commercial; scripts/get_fonts.py
 }
 
 DEFAULTS = {
@@ -122,6 +125,8 @@ def resolve_font(name, weight=None):
     path = Path(file)
     if not path.is_absolute():
         path = next((d / file for d in FONT_DIRS if (d / file).exists()), path)
+    if not path.exists() and file in json.loads((SKILL / 'assets/fonts/extra-fonts.json').read_text(encoding='utf-8')):
+        raise SystemExit(f'font {name!r} is not bundled; run: python scripts/get_fonts.py {file}')
     if not path.exists():
         raise SystemExit(f'font {name!r} not found ({file}); put it in {FONT_DIRS[0]} or use one of {list(FONTS)}')
     return path, weight or w
