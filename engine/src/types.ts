@@ -10,7 +10,7 @@ export type Line = {
   size: number;
   emphasis: boolean;
   punch: boolean; // slam in from a bigger scale (emphasis rows that don't arrive with a turn)
-  fx: 'slide' | 'waterfall' | 'flip'; // how each char comes in
+  fx: 'slide' | 'waterfall' | 'flip' | 'none'; // how each char comes in ('none' = fade only)
   chars: Char[];
 };
 

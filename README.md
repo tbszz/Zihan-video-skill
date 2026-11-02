@@ -18,11 +18,20 @@
 
 ### 逐字入场效果
 
-每行随机抽一种（也可固定一种），每个字 4 帧完成，不拖慢转向。
+`config.json` 的 `reveal` 选一种，或 `mix`（默认，每行随机抽一种）。每个字 4 帧完成，不拖慢转向。
 
-| 瀑布 `waterfall`：从上方划落 | 反转 `flip`：从镜像翻 180° 转正 | 滑入 `slide`：从左侧滑入 |
-|---|---|---|
-| ![waterfall](docs/fx_waterfall.png) | ![flip](docs/fx_flip.png) | ![slide](docs/fx_slide.png) |
+下面是 A/B 对比：同一段稿、同一个 `seed`，排版和镜头完全一样，只改 `reveal` 这一个变量。
+
+- A `none`：只有灰→白淡入（对照组）
+- B `waterfall` 瀑布：字从上方划落
+- C `flip` 反转：字从镜像翻 180° 转正
+- D `slide` 滑入：字从左侧滑入
+
+<p align="center"><img src="docs/fx_ab.gif" width="720" alt="entrance effects A/B, real speed"></p>
+
+效果很快，原速下主要是节奏感；慢放 3× 能看清每种动法：
+
+<p align="center"><img src="docs/fx_ab_slow.gif" width="720" alt="entrance effects A/B, 3x slow motion"></p>
 
 ### 字号有大有小、重点句砸入、红色关键词
 
